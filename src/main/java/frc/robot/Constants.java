@@ -26,7 +26,7 @@ public final class Constants {
      */
     public static final double DRIVETRAIN_WHEELBASE_METERS = 1.0; // FIXME Measure and set wheelbase
 
-    //public static final int DRIVETRAIN_PIGEON_ID = 0;
+    public static final int DRIVETRAIN_PIGEON_ID = 0;
 
     public static final int FRONT_LEFT_MODULE_DRIVE_MOTOR = 0; // FIXME Set front left module drive motor ID
     public static final int FRONT_LEFT_MODULE_STEER_MOTOR = 0; // FIXME Set front left module steer motor ID
