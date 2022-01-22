@@ -10,19 +10,20 @@ import com.swervedrivespecialties.swervelib.Mk4SwerveModuleHelper;
 import com.swervedrivespecialties.swervelib.SdsModuleConfigurations;
 import com.swervedrivespecialties.swervelib.SwerveModule;
 
-import edu.wpi.first.wpilibj.geometry.Pose2d;
-import edu.wpi.first.wpilibj.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.geometry.Translation2d;
-import edu.wpi.first.wpilibj.kinematics.ChassisSpeeds;
-import edu.wpi.first.wpilibj.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.wpilibj.kinematics.SwerveDriveOdometry;
-import edu.wpi.first.wpilibj.kinematics.SwerveModuleState;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
+import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj.SerialPort;
-
 import static frc.robot.Constants.*;
 
 public class DrivetrainSubsystem extends SubsystemBase {
@@ -32,7 +33,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
 	 * This can be reduced to cap the robot's maximum speed. Typically, this is
 	 * useful during initial testing of the robot.
 	 */
-	public static final double MAX_VOLTAGE = 12.0;
+	public static final double MAX_VOLTAGE = 8.0;
 	// Measure the drivetrain's maximum velocity or calculate the theoretical.
 	// The formula for calculating the theoretical maximum velocity is:
 	// <Motor free speed RPM> / 60 * <Drive reduction> * <Wheel diameter meters> *
@@ -92,10 +93,23 @@ public class DrivetrainSubsystem extends SubsystemBase {
 	private final SwerveDriveOdometry odometry;
 	private Pose2d calculatedPose;
 	private Pose2d gyroPose;
-	private ShuffleboardTab tab;
+	private ShuffleboardTab odometryTab;
+	private NetworkTableEntry estimatedX;
+	private NetworkTableEntry estimatedY;
+	private NetworkTableEntry rotation;
+	private NetworkTableEntry NavX;
+	private NetworkTableEntry NavY;
 
 	public DrivetrainSubsystem() {
-		tab = Shuffleboard.getTab("Drivetrain");
+		ShuffleboardTab tab = Shuffleboard.getTab("Drivetrain");
+		odometryTab = Shuffleboard.getTab("Odometry");
+
+		estimatedX = odometryTab.add("Estimated X", 0).getEntry();
+		estimatedY = odometryTab.add("Estimated Y", 0).getEntry();
+		rotation = odometryTab.add("\"Estimated\" Rotation", 0).getEntry();
+		NavX = odometryTab.add("NavX X", 0).getEntry();
+		NavY = odometryTab.add("NavX Y", 0).getEntry();
+		
 
 		// There are 4 methods you can call to create your swerve modules.
 		// The method you use depends on what motors you are using.
@@ -182,7 +196,6 @@ public class DrivetrainSubsystem extends SubsystemBase {
 		// Remove if you are using a Pigeon
 		pigeon.setFusedHeading(0.0);
 		
-
 		// Uncomment if you are using a NavX
 		navx.zeroYaw();
 		navx.resetDisplacement();
@@ -193,17 +206,21 @@ public class DrivetrainSubsystem extends SubsystemBase {
 
 	public Rotation2d getGyroscopeRotation() {
 		// Remove if you are using a Pigeon
-		// return Rotation2d.fromDegrees(m_pigeon.getFusedHeading());
-
+		return Rotation2d.fromDegrees(pigeon.getFusedHeading());
+/*
 		// Uncomment if you are using a NavX
 		if (navx.isMagnetometerCalibrated()) {
 			// // We will only get valid fused headings if the magnetometer is calibrated
 			return Rotation2d.fromDegrees(navx.getFusedHeading());
 		}
-		//
+		*/
 		// // We have to invert the angle of the NavX so that rotating the robot
 		// counter-clockwise makes the angle increase.
-		return Rotation2d.fromDegrees(360.0 - navx.getYaw());
+		//return Rotation2d.fromDegrees(360.0 - navx.getYaw());
+	}
+
+	public Rotation2d getNavXRotation(){
+		return Rotation2d.fromDegrees(navx.getYaw());
 	}
 
 	public Pose2d getPose() {
@@ -217,7 +234,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
 	@Override
 	public void periodic() {
 		SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(m_chassisSpeeds);
-		SwerveDriveKinematics.normalizeWheelSpeeds(states, MAX_VELOCITY_METERS_PER_SECOND);
+		SwerveDriveKinematics.desaturateWheelSpeeds(states, MAX_VELOCITY_METERS_PER_SECOND);
 
 		m_frontLeftModule.set(states[0].speedMetersPerSecond / MAX_VELOCITY_METERS_PER_SECOND * MAX_VOLTAGE,
 				states[0].angle.getRadians());
@@ -229,20 +246,28 @@ public class DrivetrainSubsystem extends SubsystemBase {
 				states[3].angle.getRadians());
 
 		calculatedPose = odometry.update(navx.getRotation2d(), states);
-		tab.add("Calculated X", calculatedPose.getX());
-		tab.add("Calculated Y", calculatedPose.getY());
-		tab.add("Calculated Rotation", calculatedPose.getRotation().getDegrees());
+		//SmartDashboard.putNumber("Estimated X", calculatedPose.getX());
+		//SmartDashboard.putNumber("Estimated Y", calculatedPose.getY());
+		//SmartDashboard.putNumber("\"Estimated\" Rotation", calculatedPose.getRotation().getDegrees());
+		estimatedX.setDouble(calculatedPose.getX());
+		estimatedY.setDouble(calculatedPose.getY());
+		rotation.setDouble(calculatedPose.getRotation().getDegrees());
 
 		gyroPose = new Pose2d(new Translation2d(navx.getDisplacementX(), navx.getDisplacementY()), navx.getRotation2d());
-		tab.add("Gyro X", gyroPose.getX());
-		tab.add("Gyro Y", gyroPose.getY());
+		//SmartDashboard.putNumber("NavX X", gyroPose.getX());
+		//SmartDashboard.putNumber("NavX Y", gyroPose.getY());
+		NavX.setDouble(gyroPose.getX());
+		NavY.setDouble(gyroPose.getY());
 
-		// Not odometry, need to test what values are returned
-		double[] xyz = new double[3];
-		pigeon.getAccumGyro(xyz);
-		tab.add("Pigeon X", xyz[0]);
-		tab.add("Pigeon Y", xyz[1]);
-		tab.add("Pigeon Z", xyz[2]);
-		tab.add("getRotation Method", getGyroscopeRotation().getDegrees());
+		// Not odometry
+		SmartDashboard.putNumber("Pigeon Rot", getGyroscopeRotation().getDegrees());
+		/*pigeon.getAccumGyro(xyz);
+		SmartDashboard.putNumber("Pigeon X", xyz[0]);
+		SmartDashboard.putNumber("Pigeon Y", xyz[1]);
+		SmartDashboard.putNumber("Pigeon Z", xyz[2]);*/
+		/*odometryTab.add("Pigeon W", xyz[0]);
+		odometryTab.add("Pigeon X", xyz[1]);
+		odometryTab.add("Pigeon Y", xyz[2]);
+		odometryTab.add("Pigeon Z", xyz[3]);*/
 	}
 }
