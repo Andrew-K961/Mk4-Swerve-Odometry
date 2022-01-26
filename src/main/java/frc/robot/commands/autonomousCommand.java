@@ -1,6 +1,7 @@
 package frc.robot.commands;
 
 import com.pathplanner.lib.PathPlanner;
+import com.pathplanner.lib.PathPlannerTrajectory.PathPlannerState;
 import com.pathplanner.lib.PathPlannerTrajectory;
 
 import edu.wpi.first.math.controller.HolonomicDriveController;
@@ -8,7 +9,6 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.trajectory.Trajectory.State;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import frc.robot.subsystems.DrivetrainSubsystem;
@@ -34,11 +34,11 @@ public class autonomousCommand extends CommandBase {
 
     ProfiledPIDController thetaController = new ProfiledPIDController(0, 0, 0,
         new TrapezoidProfile.Constraints(Math.PI, Math.PI));
+    PIDController pid = new PIDController(.75, .001, 0);
 
     thetaController.enableContinuousInput(-Math.PI, Math.PI);
 
-    controller = new HolonomicDriveController(new PIDController(1, 1, 1), new PIDController(1, 1, 1),
-        thetaController);
+    controller = new HolonomicDriveController(pid, pid, thetaController);
 
     timer.reset();
     timer.start();
@@ -46,25 +46,22 @@ public class autonomousCommand extends CommandBase {
 
   @Override
   public void execute() {
-    State desiredState = trajectory.sample(timer.get());
+    PathPlannerState desiredState = (PathPlannerState) trajectory.sample(timer.get());
 
     ChassisSpeeds targetChassisSpeeds = controller.calculate(m_subsystem.getPose(), desiredState,
-        desiredState.poseMeters.getRotation());
+        desiredState.holonomicRotation);
 
     m_subsystem.drive(targetChassisSpeeds);
   }
 
   @Override
   public void end(boolean interrupted) {
-    m_subsystem.drive(new ChassisSpeeds(0,0,0));
+    m_subsystem.drive(new ChassisSpeeds(0, 0, 0));
+    timer.stop();
   }
 
   @Override
   public boolean isFinished() {
-    if (timer.get() <= trajectory.getTotalTimeSeconds()){
-      return false;
-    } else {
-      return true;
-    }
+    return timer.hasElapsed(trajectory.getTotalTimeSeconds());
   }
 }

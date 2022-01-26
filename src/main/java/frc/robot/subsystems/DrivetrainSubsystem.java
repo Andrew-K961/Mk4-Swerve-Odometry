@@ -94,11 +94,11 @@ public class DrivetrainSubsystem extends SubsystemBase {
 	private Pose2d calculatedPose;
 	private Pose2d gyroPose;
 	private ShuffleboardTab odometryTab;
-	private NetworkTableEntry estimatedX;
-	private NetworkTableEntry estimatedY;
-	private NetworkTableEntry rotation;
-	private NetworkTableEntry NavX;
-	private NetworkTableEntry NavY;
+	private final NetworkTableEntry estimatedX;
+	private final NetworkTableEntry estimatedY;
+	private final NetworkTableEntry rotation;
+	private final NetworkTableEntry NavX;
+	private final NetworkTableEntry NavY;
 
 	public DrivetrainSubsystem() {
 		ShuffleboardTab tab = Shuffleboard.getTab("Drivetrain");
@@ -204,7 +204,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
 		odometry.resetPosition(calculatedPose, navx.getRotation2d());
 	}
 
-	public Rotation2d getGyroscopeRotation() {
+	public Rotation2d getPigeonRotation() {
 		// Remove if you are using a Pigeon
 		return Rotation2d.fromDegrees(pigeon.getFusedHeading());
 /*
@@ -260,7 +260,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
 		NavY.setDouble(gyroPose.getY());
 
 		// Not odometry
-		SmartDashboard.putNumber("Pigeon Rot", getGyroscopeRotation().getDegrees());
+		SmartDashboard.putNumber("Pigeon Rot", getPigeonRotation().getDegrees());
 		/*pigeon.getAccumGyro(xyz);
 		SmartDashboard.putNumber("Pigeon X", xyz[0]);
 		SmartDashboard.putNumber("Pigeon Y", xyz[1]);
